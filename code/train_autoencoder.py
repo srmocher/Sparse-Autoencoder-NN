@@ -12,10 +12,10 @@ import matplotlib.pyplot as plt
 # Once steps 1-4 are completed, they can be set to False while
 # RUN_STEP_5_TRAIN_AUTOENCODER is True.
 
-RUN_STEP_1 = True  # visualize patches, exercise 1
+RUN_STEP_1 = False  # visualize patches, exercise 1
 RUN_STEP_2 = True  # implement utils.initialize, exercise 2
 RUN_STEP_3 = True  # implement utils.autoencoder_cost_and_grad{_sparse}, exercise 3 (first part), and revisit with exercise 6
-RUN_STEP_4_DEBUG_GRADIENT = False  # implement gradient.compute_gradient_numerical_estimate, exercise 3 (second), and revisit with exercise 6
+RUN_STEP_4_DEBUG_GRADIENT = False # implement gradient.compute_gradient_numerical_estimate, exercise 3 (second), and revisit with exercise 6
 RUN_STEP_5_TRAIN_AUTOENCODER = True # exercise 5, exercise 6
 
 # ======================================================================
@@ -34,11 +34,11 @@ hidden_size = 100
 #  in the lecture notes).
 
 # weight decay (weight regularization) parameter
-lambda_ = 0.0001
+lambda_ = 0.00001
 
 # sparsity parameters
 beta_=0.01
-rho_ = 0.01
+rho_ = 0.005
 
 
 # ======================================================================
@@ -53,11 +53,9 @@ rho_ = 0.01
 
 # NOTE: YOU LIKELY NEED TO CHANGE THE FOLLOWING PATH TO WHERE YOU STORED THE MNIST DATA
 images = load_MNIST.load_MNIST_images('../data/mnist/train-images.idx3-ubyte')
-labels = load_MNIST.load_MNIST_labels('../data/mnist/train-labels.idx1-ubyte')
 # Each column represents one 28x28 pixel image (784 total pixels) that has
 # been "unrolled" into a 784-element column vector.
 patches_train = images[:, 0:100]  # grabs the first 100 images (i.e., the first 100 columns)
-patches_labels = labels[0:100]
 patches_test = images[:, 1200:1300]  # grabs 100 image patches that will be used for 'testing'
 
 #visualize.plot_images(patches_train[:, 0:100])
@@ -74,18 +72,18 @@ patches_test = images[:, 1200:1300]  # grabs 100 image patches that will be used
 #     Also plot the first 100 image patches that will be used for 'testing' (patches 1200 to 1300)
 
 if RUN_STEP_1:
-    #fig1 = plt.figure()
-    # fig1.suptitle('First 10 training images from patches_train')
-    # visualize.plot_images(patches_train[:,0:10])
-    # fig2 = plt.figure()
-    # fig2.suptitle('First 50 training images from patches_train')
-    # visualize.plot_images(patches_train[:,0:50])
+    fig1 = plt.figure()
+    fig1.suptitle('First 10 training images from patches_train')
+    visualize.plot_images(patches_train[:,0:10])
+    fig2 = plt.figure()
+    fig2.suptitle('First 50 training images from patches_train')
+    visualize.plot_images(patches_train[:,0:50])
     fig3 = plt.figure()
-    fig3.suptitle('First 100 training images from patches_train')
+   # fig3.suptitle('First 100 training images from patches_train')
     visualize.plot_images(patches_train[:,0:100])
     fig4 = plt.figure()
-    fig4.suptitle('Testing images')
-    visualize.plot_images(patches_test)
+    fig4.suptitle('Testing images from patches_test')
+    visualize.plot_images(patches_test,filepath="../fig8.png")
     pass
 
 
@@ -132,7 +130,7 @@ if RUN_STEP_2:
 #  using the Step 4 debug as well.
 grad = None
 if RUN_STEP_3:
-    (cost,grad) = utils.autoencoder_cost_and_grad(theta, visible_size, hidden_size, lambda_,patches_train)
+    (cost,grad) = utils.autoencoder_cost_and_grad_sparse(theta, visible_size, hidden_size, lambda_,rho_,beta_,patches_train)
 
 
 # ======================================================================
@@ -162,11 +160,11 @@ if RUN_STEP_4_DEBUG_GRADIENT:
     # for the sparse autoencoder.
     # J is the cost function
 
-    print('Now test autoencoder_cost_and_grad() gradient against numerical estimate:')
+    print('Now test autoencoder_cost_and_grad_sparse() gradient against numerical estimate:')
     print('    Total number of parameters, theta.shape= {0}'.format(theta.shape))
 
     # define the objective function that returns cost and grad, used by scipy.optimizze.minimize
-    J = lambda x: utils.autoencoder_cost_and_grad(x, visible_size, hidden_size, lambda_, patches_train)
+    J = lambda x: utils.autoencoder_cost_and_grad_sparse(x, visible_size, hidden_size, lambda_,rho_,beta_, patches_train)
 
     num_grad = gradient.compute_gradient_numerical_estimate(J, theta)
 
@@ -203,7 +201,7 @@ if RUN_STEP_5_TRAIN_AUTOENCODER:
     start_time = datetime.datetime.now()
     print("    START TIME {0}".format(utils.get_pretty_time_string(start_time)))
     # define the objective function that returns cost and grad, used by scipy.optimizze.minimize
-    J = lambda x: utils.autoencoder_cost_and_grad(x, visible_size, hidden_size, lambda_, patches_train)
+    J = lambda x: utils.autoencoder_cost_and_grad_sparse(x, visible_size, hidden_size, lambda_,rho_,beta_, patches_train)
 
     options_ = {'maxiter': 4000, 'disp': False}
     result = scipy.optimize.minimize(J, x0=theta,method='L-BFGS-B', jac=True, options=options_)
@@ -227,7 +225,7 @@ if RUN_STEP_5_TRAIN_AUTOENCODER:
 
     # Step 6: Visualize and save results
 
-    results_filepath_root = 'autoencoder_k{0}_h{1}_l{2}'.format(patches_train.shape[1], hidden_size, lambda_)
+    results_filepath_root = 'autoencoder_k{0}_h{1}_l{2}_rho{3}_beta{4}'.format(patches_train.shape[1], hidden_size, lambda_,rho_,beta_)
 
     utils.plot_and_save_results\
         (opt_theta, visible_size, hidden_size,

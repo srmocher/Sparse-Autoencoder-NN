@@ -39,7 +39,10 @@ def compute_gradient_numerical_estimate(J, theta, epsilon=0.0001):
 
     gradient = numpy.zeros(theta.shape)
 
+    # epsilon vector - same size as number of parameter
     eps_vector = numpy.zeros(theta.shape)
+
+    # set epsilon for each parameter, compute cost and unset the epsilon
     for i in range(0,theta.size):
 
         eps_vector[i] = epsilon

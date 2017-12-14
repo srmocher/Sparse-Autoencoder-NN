@@ -12,8 +12,7 @@ import matplotlib.pyplot as plt
 def sigmoid(x):
     return 1 / (1 + numpy.exp(-x))
 
-def sigmoid_derivative(x):
-    return sigmoid(x)*(1-sigmoid(x))
+
 
 def kl_divergence(rho,rho_hat):
     return numpy.sum(rho*numpy.log(rho/rho_hat) + (1-rho)*numpy.log((1-rho)/(1-rho_hat)))
@@ -29,16 +28,19 @@ def initialize(hidden_size, visible_size):
     :return: theta array
     """
 
-    ### YOUR CODE HERE ###
 
 
-    b1 = numpy.zeros(hidden_size,dtype=numpy.float64)
-    b2 = numpy.zeros(visible_size,dtype=numpy.float64)
+    # create arrays for the weights and biases
+    b1 = numpy.zeros(hidden_size)
+    b2 = numpy.zeros(visible_size)
 
+    # sample uniformly for the weights
     r = numpy.sqrt(6) / numpy.sqrt(2*visible_size + 1)
 
-    W1 = numpy.random.random((hidden_size, visible_size)) * 2 * r - r
-    W2 = numpy.random.random((visible_size, hidden_size)) * 2 * r - r
+    W1 = numpy.random.uniform(-r,r,size=(hidden_size,visible_size))
+    W2 = numpy.random.uniform(-r,r,size=(visible_size,hidden_size))
+
+    # concatenate weights and biases into a 1-D array
     weights = (W1.reshape(hidden_size*visible_size),W2.reshape(visible_size*hidden_size),b1.reshape(hidden_size),b2.reshape(visible_size))
     theta = numpy.concatenate(weights)
     return theta
@@ -120,7 +122,8 @@ def autoencoder_cost_and_grad_sparse(theta, visible_size, hidden_size, lambda_, 
         grad : array representing the corresponding gradient of each element of theta
     """
 
-    ### YOUR CODE HERE ###
+    ### Same as autoencoder_cost_and_grad but with sparsity terms included
+
     training_size = data.shape[1]
     # unroll theta to get (W1,W2,b1,b2) #
     W1 = theta[0:hidden_size * visible_size]
@@ -130,20 +133,18 @@ def autoencoder_cost_and_grad_sparse(theta, visible_size, hidden_size, lambda_, 
     W2 = W2.reshape(visible_size, hidden_size)
 
     b1 = theta[2 * hidden_size * visible_size:2 * hidden_size * visible_size + hidden_size].reshape(hidden_size, 1)
-    b2 = theta[
-         2 * hidden_size * visible_size + hidden_size: 2 * hidden_size * visible_size + hidden_size + visible_size].reshape(
-        visible_size, 1)
+    b2 = theta[2 * hidden_size * visible_size + hidden_size: 2 * hidden_size * visible_size + hidden_size + visible_size].reshape(visible_size, 1)
 
     # feedforward pass
     a_l1 = data
 
-    z_l2 = W1.dot(a_l1) + numpy.tile(b1, (1, training_size))
+    z_l2 = W1.dot(a_l1) +b1
     a_l2 = sigmoid(z_l2)
 
-    z_l3 = W2.dot(a_l2) + numpy.tile(b2, (1, training_size))
+    z_l3 = W2.dot(a_l2) + b2
     a_l3 = sigmoid(z_l3)
 
-    # backprop
+    # backprop - compute deltas and then compute cost gradients
 
 
     delta_l3 = -(data - a_l3) * a_l3 * (1 - a_l3)
@@ -152,28 +153,26 @@ def autoencoder_cost_and_grad_sparse(theta, visible_size, hidden_size, lambda_, 
     rho_hat = numpy.sum(a_l2, axis=1) / training_size
     a_l2_grad = a_l2 * (1 - a_l2)
 
-
-    sparsity_delta = numpy.tile(- rho_ / rho_hat + (1 - rho_) / (1 - rho_hat), (training_size, 1)).T
-    delta_l2 = numpy.multiply(W2.T.dot(delta_l3) + beta_*sparsity_delta, a_l2_grad)
+    # compute sparsity penalty
+    sparsity_penalty = numpy.tile(- rho_ / rho_hat + (1 - rho_) / (1 - rho_hat), (training_size, 1)).T
+    delta_l2 = numpy.multiply(W2.T.dot(delta_l3) + beta_*sparsity_penalty,a_l2_grad)
 
     b2_derivative = numpy.sum(delta_l3, axis=1) / training_size
     b1_derivative = numpy.sum(delta_l2, axis=1) / training_size
 
-    W2_derivative = numpy.dot(delta_l3, a_l2.T) / training_size
+    W2_derivative = numpy.dot(delta_l3, a_l2.T) / training_size + lambda_*W2
     # print(W2_derivative.shape)
-    W1_derivative = numpy.dot(delta_l2, a_l1.T) / training_size
+    W1_derivative = numpy.dot(delta_l2, a_l1.T) / training_size + lambda_*W1
 
     W1_derivative = W1_derivative.reshape(hidden_size * visible_size)
     W2_derivative = W2_derivative.reshape(visible_size * hidden_size)
     b1_derivative = b1_derivative.reshape(hidden_size)
     b2_derivative = b2_derivative.reshape(visible_size)
 
-
-
-
+    # add KL divergence to cost
     kl_div = kl_divergence(rho_,rho_hat)
     grad = numpy.concatenate((W1_derivative, W2_derivative, b1_derivative, b2_derivative))
-    cost = 0.5 * numpy.sum((data - a_l3) ** 2) / training_size + 0.5 * lambda_ * (numpy.sum(numpy.square(W1)) + numpy.sum(numpy.square(W2))) + beta_*kl_div
+    cost = 0.5 * numpy.sum(numpy.square(data - a_l3)) / training_size + 0.5 * lambda_ * (numpy.sum(numpy.square(W1)) + numpy.sum(numpy.square(W2))) + beta_*kl_div
     return cost, grad
 
 
@@ -215,24 +214,29 @@ def autoencoder_feedforward(theta, visible_size, hidden_size, data):
                   vector of activations corresponding to the input data columns
     """
 
-    ### YOUR CODE HERE ###
+    # unroll weights, compute the activations from input to output layer
 
-    training_size = data.shape[1]
-    W1 = theta[0:hidden_size*visible_size].reshape(hidden_size,visible_size)
-    W2 = theta[hidden_size*visible_size:2*hidden_size*visible_size].reshape(visible_size,hidden_size)
-    b1 = theta[2*hidden_size*visible_size:2*hidden_size*visible_size+hidden_size].reshape(hidden_size,1)
-    b2 = theta[2*hidden_size*visible_size+hidden_size:2*hidden_size*visible_size+hidden_size+visible_size].reshape(visible_size,1)
+    W1 = theta[0:hidden_size * visible_size]
+    W1 = W1.reshape(hidden_size, visible_size)
 
+    W2 = theta[hidden_size * visible_size:2 * hidden_size * visible_size]
+    W2 = W2.reshape(visible_size, hidden_size)
+
+    b1 = theta[2 * hidden_size * visible_size:2 * hidden_size * visible_size + hidden_size].reshape(hidden_size, 1)
+    b2 = theta[
+         2 * hidden_size * visible_size + hidden_size: 2 * hidden_size * visible_size + hidden_size + visible_size].reshape(
+        visible_size, 1)
+
+    # feedforward pass
     a_l1 = data
-    z_l2 = W1.dot(a_l1) + numpy.tile(b1,(1,training_size))
 
+    z_l2 = W1.dot(a_l1) + b1
     a_l2 = sigmoid(z_l2)
-    z_l3 = W2.dot(a_l2) + numpy.tile(b2,(1,training_size))
 
-    output_activations = sigmoid(z_l3)  # implement
+    z_l3 = W2.dot(a_l2) + b2
+    output_activations = sigmoid(z_l3)
 
     return output_activations
-
 
 # -------------------------------------------------------------------------
 

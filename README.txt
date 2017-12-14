@@ -1,0 +1,1 @@
+Before running the code, place the data file in data/mnist folder or modify the path in line 55 of train_autoencoder.py
